@@ -12,7 +12,7 @@ lintCheck:
 
 ci-validate: lintCheck check-reference
 
-.PHONY check-reference
+.PHONY: check-reference
 
 check-reference:
         $(MAKE) -C ./telco-core/configuration check
