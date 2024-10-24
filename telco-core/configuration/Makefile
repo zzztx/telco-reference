@@ -5,6 +5,9 @@ DOWNLOAD_URL := $(shell curl -s https://api.github.com/repos/openshift/kube-comp
 ARCHIVE_NAME := kubectl-cluster_compare-linux_amd64.tar.gz
 HELM_URL := https://get.helm.sh/helm-v3.16.1-linux-amd64.tar.gz
 HELM_PKG := helm-linux-amd64.tar.gz
+HELM_DIR := /tmp
+HELM_BIN := $(HELM_DIR)/helm
+HELM := $(if $(shell command -v helm 2>/dev/null), $(shell command -v helm), $(HELM_BIN))
 
 .PHONY: check
 check: metadata_lint compare
@@ -31,27 +34,28 @@ kubectl-cluster_compare:
 
 .PHONY: clean
 clean:
-	rm -rf kubectl-cluster_compare Chartv1 renderedv1 helm
+	rm -rf kubectl-cluster_compare Chartv1 renderedv1 $(HELM_BIN)
 
 
 .PHONY: convert
-convert: $(HELMCONVERTOR) helm
+convert: $(HELMCONVERTOR) $(HELM)
 	@echo "Converting reference files to Helm Charts."
 	@rm -rf Chartv1 renderedv1
 	@$(HELMCONVERTOR) -r ./reference-crs-kube-compare/metadata.yaml -n Chartv1 -v default_value.yaml
 	@echo "Rendering Helm Charts to CR files."
-	@./helm template renderedv1 ./Chartv1 --output-dir renderedv1
+	@$(HELM) template renderedv1 ./Chartv1 --output-dir renderedv1
 
 .PHONY: $(HELMCONVERTOR)
 $(HELMCONVERTOR):
 	@echo "Installing helm-convert tool..."
 	go install github.com/openshift/kube-compare/addon-tools/helm-convert@latest
 
-helm:
-	@echo "Installing helm..."
-	curl -fsSL $(HELM_URL) -o $(HELM_PKG)
-	tar -zxvf $(HELM_PKG) linux-amd64/helm --strip-components 1
-	rm -f $(HELM_PKG)
+$(HELM):
+	@if [[ $(HELM) == $(HELM_BIN) ]] && [ ! -f $(HELM) ]; then \
+		echo "Installing helm..." \
+		&& cd $(HELM_DIR) && curl -fsSL $(HELM_URL) -o $(HELM_PKG) \
+		&& tar -zxvf $(HELM_PKG) linux-amd64/helm --strip-components 1 && rm -f $(HELM_PKG); \
+	fi
 
 
 .PHONY: compare
