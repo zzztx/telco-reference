@@ -1,8 +1,5 @@
-GOPATH  ?= $(HOME)/go
-GOBIN ?= $(GOPATH)/bin
-export HELMCONVERTOR := $(GOBIN)/helm-convert
-DOWNLOAD_URL := $(shell curl -s https://api.github.com/repos/openshift/kube-compare/releases/latest | jq -r '.assets[] | select(.name? | match("linux_amd64")) | .browser_download_url')
-ARCHIVE_NAME := kubectl-cluster_compare-linux_amd64.tar.gz
+CLUSTER_COMPARE_DOWNLOAD_URL := $(shell curl -s https://api.github.com/repos/openshift/kube-compare/releases/latest | jq -r '.assets[] | select(.name? | match("kube-compare_linux_amd64")) | .browser_download_url')
+HELM_CONVERT_DOWNLOAD_URL := $(shell curl -s https://api.github.com/repos/openshift/kube-compare/releases/latest | jq -r '.assets[] | select(.name? | match("kube-compare_addon_tools_linux_amd64")) | .browser_download_url')
 HELM_URL := https://get.helm.sh/helm-v3.16.1-linux-amd64.tar.gz
 HELM_PKG := helm-linux-amd64.tar.gz
 HELM_DIR := /tmp
@@ -29,29 +26,32 @@ compare_crs: kubectl-cluster_compare
 	fi
 
 kubectl-cluster_compare:
-	@echo "Downloading kube-compare tool"
-	curl -sL $(DOWNLOAD_URL) -o $(ARCHIVE_NAME)
-	tar zxvf $(ARCHIVE_NAME) $@
-	rm -f $(ARCHIVE_NAME)
+	@echo "Downloading $@"
+	curl -sL $(CLUSTER_COMPARE_DOWNLOAD_URL) -o $@.tgz
+	tar zxvf $@.tgz $@
+	rm -f $@.tgz
 
 
 .PHONY: clean
 clean:
-	rm -rf kubectl-cluster_compare Chartv1 renderedv1 $(HELM_BIN)
+	rm -rf kubectl-cluster_compare helm-convert Chartv1 renderedv1 $(HELM_BIN)
 
 
 .PHONY: convert
-convert: $(HELMCONVERTOR) $(HELM)
+convert: helm-convert $(HELM)
 	@echo "Converting reference files to Helm Charts."
 	@rm -rf Chartv1 renderedv1
-	@$(HELMCONVERTOR) -r ./reference-crs-kube-compare/metadata.yaml -n Chartv1 -v default_value.yaml
+	@./helm-convert -r ./reference-crs-kube-compare/metadata.yaml -n Chartv1 -v default_value.yaml
 	@echo "Rendering Helm Charts to CR files."
 	@$(HELM) template renderedv1 ./Chartv1 --output-dir renderedv1
 
-.PHONY: $(HELMCONVERTOR)
-$(HELMCONVERTOR):
-	@echo "Installing helm-convert tool..."
-	go install github.com/openshift/kube-compare/addon-tools/helm-convert@latest
+
+helm-convert:
+	@echo "Downloading $@"
+	curl -sL $(HELM_CONVERT_DOWNLOAD_URL) -o $@.tgz
+	tar zxvf $@.tgz $@
+	rm -f $@.tgz
+
 
 $(HELM):
 	@if [[ $(HELM) == $(HELM_BIN) ]] && [ ! -f $(HELM) ]; then \
@@ -59,6 +59,7 @@ $(HELM):
 		&& cd $(HELM_DIR) && curl -fsSL $(HELM_URL) -o $(HELM_PKG) \
 		&& tar -zxvf $(HELM_PKG) linux-amd64/helm --strip-components 1 && rm -f $(HELM_PKG); \
 	fi
+
 
 # compare target is used to find out missing files between reference and source-crs.
 .PHONY: compare
