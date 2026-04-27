@@ -2,4 +2,5 @@
 - op: replace
   path: "/spec/storageClassDevices/0/devicePaths"
   value:  # add devices to be used by local storage operator
-    - /dev/nvme1n1
+    - /dev/disk/by-path/pci-0000:31:00.0-nvme-1
+    - /dev/disk/by-path/pci-0000:32:00.0-nvme-1

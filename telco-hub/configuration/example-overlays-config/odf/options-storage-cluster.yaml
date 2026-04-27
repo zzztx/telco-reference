@@ -3,7 +3,7 @@
 
 - op: replace
   path: /spec/storageDeviceSets/0/dataPVCTemplate/spec/resources/requests/storage
-  value: "400Gi"
+  value: 1
 
 - op: replace
   path: /spec/storageDeviceSets/0/dataPVCTemplate/spec/storageClassName
